@@ -1,0 +1,67 @@
+name: angie_text_edit
+description: Rich Text Editor & Utilities Suite for Flutter
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # ============================================
+  # CORE EDITOR
+  # ============================================
+  flutter_quill: ^11.5.0 # Visual Rich Text Editor (updated for intl compatibility)
+  vsc_quill_delta_to_html: ^1.0.5 # Delta to HTML conversion
+
+  # ============================================
+  # STATE MANAGEMENT
+  # ============================================
+  flutter_riverpod: ^2.6.0 # Scalable state management
+
+  # ============================================
+  # FILE & STORAGE
+  # ============================================
+  file_picker: ^8.0.0 # File I/O dialogs
+  shared_preferences: ^2.3.2 # Draft auto-save storage
+  path_provider: ^2.1.0 # Platform-specific paths
+
+  # ============================================
+  # EXPORT & SHARING
+  # ============================================
+  pdf: ^3.10.0 # PDF document generation
+  printing: ^5.11.0 # PDF preview and printing
+  share_plus: ^7.2.0 # Social sharing
+
+  # ============================================
+  # ACCESSIBILITY & UX
+  # ============================================
+  flutter_tts: ^3.8.5 # Text-to-Speech
+
+  # ============================================
+  # PERMISSIONS
+  # ============================================
+  permission_handler: ^11.3.0 # OS permission handling
+
+  # ============================================
+  # UI UTILITIES
+  # ============================================
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+
+  # Assets and fonts can be added here later
+  # assets:
+  #   - assets/icons/
+  # fonts:
+  #   - family: CustomFont
+  #     fonts:
+  #       - asset: fonts/CustomFont-Regular.ttf
