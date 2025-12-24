@@ -123,7 +123,7 @@ void main() {
 
   group('TextUtilities - Extractors', () {
     test('extractEmails finds email addresses', () {
-      final text = 'Contact test@example.com or info@site.org';
+      const text = 'Contact test@example.com or info@site.org';
       final emails = TextUtilities.extractEmails(text);
       expect(emails, ['test@example.com', 'info@site.org']);
     });
@@ -133,14 +133,14 @@ void main() {
     });
 
     test('extractUrls finds URLs', () {
-      final text = 'Visit https://google.com or http://test.org';
+      const text = 'Visit https://google.com or http://test.org';
       final urls = TextUtilities.extractUrls(text);
       expect(urls.length, 2);
       expect(urls[0], contains('google.com'));
     });
 
     test('extractPhoneNumbers finds phone numbers', () {
-      final text = 'Call +1-555-123-4567 or (555) 987-6543';
+      const text = 'Call +1-555-123-4567 or (555) 987-6543';
       final phones = TextUtilities.extractPhoneNumbers(text);
       expect(phones.isNotEmpty, true);
     });
