@@ -6,6 +6,9 @@ import '../widgets/custom_toolbar.dart';
 import '../../providers/editor_provider.dart';
 import '../../providers/auto_save_provider.dart';
 import '../../../utilities/presentation/widgets/utils_sidebar.dart';
+import '../../../export/services/file_service.dart';
+import '../../../../shared/services/tts_service.dart';
+import 'package:share_plus/share_plus.dart';
 
 /// Main editor screen with rich text editor and utilities sidebar
 class EditorScreen extends ConsumerStatefulWidget {
@@ -19,11 +22,22 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   final FocusNode _editorFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
   bool _showSidebar = false;
+  String? _currentFilePath;
+  late final TtsService _ttsService;
+  bool _isSpeaking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ttsService = TtsService.instance;
+    _ttsService.initialize();
+  }
 
   @override
   void dispose() {
     _editorFocusNode.dispose();
     _scrollController.dispose();
+    _ttsService.dispose();
     super.dispose();
   }
 
@@ -54,6 +68,16 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           _handleRedo();
           return KeyEventResult.handled;
         }
+        // Ctrl+N / Cmd+N - New
+        if (event.logicalKey == LogicalKeyboardKey.keyN) {
+          _handleNew();
+          return KeyEventResult.handled;
+        }
+        // Ctrl+O / Cmd+O - Open
+        if (event.logicalKey == LogicalKeyboardKey.keyO) {
+          _handleOpen();
+          return KeyEventResult.handled;
+        }
       }
     }
     return KeyEventResult.ignored;
@@ -61,12 +85,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 
   void _handleSave() {
     ref.read(autoSaveProvider).saveNow();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Document saved'),
-        duration: Duration(seconds: 1),
-      ),
-    );
+    _showSnackBar('Document saved');
   }
 
   void _handleUndo() {
@@ -81,6 +100,128 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     setState(() {
       _showSidebar = !_showSidebar;
     });
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // FILE OPERATIONS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  void _handleNew() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('New Document'),
+        content: const Text('Create a new document? Unsaved changes will be lost.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              ref.read(editorControllerProvider.notifier).clearDocument();
+              setState(() => _currentFilePath = null);
+              _showSnackBar('New document created');
+            },
+            child: const Text('New'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleOpen() async {
+    try {
+      final document = await FileService.loadDocument();
+      if (document != null) {
+        final delta = document.toDelta().toJson();
+        ref.read(editorControllerProvider.notifier).loadDocument(delta);
+        _showSnackBar('Document opened');
+      }
+    } catch (e) {
+      _showSnackBar('Error opening file: $e');
+    }
+  }
+
+  Future<void> _handleSaveAs(String format) async {
+    try {
+      final controller = ref.read(editorControllerProvider);
+      
+      ExportFormat exportFormat;
+      switch (format) {
+        case 'txt':
+          exportFormat = ExportFormat.txt;
+          break;
+        case 'html':
+          exportFormat = ExportFormat.html;
+          break;
+        case 'json':
+          exportFormat = ExportFormat.json;
+          break;
+        case 'pdf':
+          exportFormat = ExportFormat.pdf;
+          break;
+        default:
+          exportFormat = ExportFormat.txt;
+      }
+
+      final result = await FileService.saveDocument(
+        controller.document,
+        format: exportFormat,
+      );
+
+      if (result.success) {
+        setState(() => _currentFilePath = result.filePath);
+        _showSnackBar('Saved as $format');
+      } else {
+        _showSnackBar(result.errorMessage ?? 'Save failed');
+      }
+    } catch (e) {
+      _showSnackBar('Error saving file: $e');
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // SHARE & TTS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  Future<void> _handleShare() async {
+    final controller = ref.read(editorControllerProvider);
+    final text = controller.document.toPlainText();
+    
+    if (text.trim().isEmpty) {
+      _showSnackBar('Nothing to share');
+      return;
+    }
+
+    await Share.share(text, subject: 'Shared from Angie Text Edit');
+  }
+
+  Future<void> _toggleTts() async {
+    final controller = ref.read(editorControllerProvider);
+    
+    if (_isSpeaking) {
+      await _ttsService.stop();
+      setState(() => _isSpeaking = false);
+    } else {
+      final text = controller.document.toPlainText();
+      if (text.trim().isEmpty) {
+        _showSnackBar('No text to read');
+        return;
+      }
+      await _ttsService.speak(text);
+      setState(() => _isSpeaking = true);
+    }
   }
 
   @override
@@ -112,9 +253,55 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                   ),
                 ),
               ],
+              if (_currentFilePath != null) ...[
+                const SizedBox(width: 8),
+                Text(
+                  '- ${_currentFilePath!.split(RegExp(r'[/\\]')).last}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
             ],
           ),
           actions: [
+            // File menu
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.folder_outlined),
+              tooltip: 'File',
+              onSelected: (value) {
+                switch (value) {
+                  case 'new':
+                    _handleNew();
+                    break;
+                  case 'open':
+                    _handleOpen();
+                    break;
+                  case 'save':
+                    _handleSave();
+                    break;
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(value: 'new', child: ListTile(leading: Icon(Icons.add), title: Text('New'), subtitle: Text('Ctrl+N'))),
+                const PopupMenuItem(value: 'open', child: ListTile(leading: Icon(Icons.folder_open), title: Text('Open'), subtitle: Text('Ctrl+O'))),
+                const PopupMenuItem(value: 'save', child: ListTile(leading: Icon(Icons.save), title: Text('Save Draft'), subtitle: Text('Ctrl+S'))),
+              ],
+            ),
+
+            // Export menu
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.download_outlined),
+              tooltip: 'Export',
+              onSelected: (value) => _handleSaveAs(value),
+              itemBuilder: (context) => [
+                const PopupMenuItem(value: 'txt', child: ListTile(leading: Icon(Icons.text_snippet), title: Text('Export as TXT'))),
+                const PopupMenuItem(value: 'html', child: ListTile(leading: Icon(Icons.code), title: Text('Export as HTML'))),
+                const PopupMenuItem(value: 'json', child: ListTile(leading: Icon(Icons.data_object), title: Text('Export as JSON'))),
+                const PopupMenuItem(value: 'pdf', child: ListTile(leading: Icon(Icons.picture_as_pdf), title: Text('Export as PDF'))),
+              ],
+            ),
+
+            const VerticalDivider(),
+
             // Undo button
             IconButton(
               icon: const Icon(Icons.undo),
@@ -127,13 +314,23 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               onPressed: ref.watch(canRedoProvider) ? _handleRedo : null,
               tooltip: 'Redo (Ctrl+Y)',
             ),
+
             const VerticalDivider(),
-            // Save button
+
+            // TTS button
             IconButton(
-              icon: const Icon(Icons.save),
-              onPressed: _handleSave,
-              tooltip: 'Save (Ctrl+S)',
+              icon: Icon(_isSpeaking ? Icons.stop : Icons.volume_up),
+              onPressed: _toggleTts,
+              tooltip: _isSpeaking ? 'Stop Reading' : 'Read Aloud',
             ),
+
+            // Share button
+            IconButton(
+              icon: const Icon(Icons.share),
+              onPressed: _handleShare,
+              tooltip: 'Share',
+            ),
+
             // Toggle sidebar button
             IconButton(
               icon: Icon(_showSidebar ? Icons.menu_open : Icons.menu),
@@ -180,3 +377,4 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     );
   }
 }
+

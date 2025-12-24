@@ -82,6 +82,11 @@ class EditorControllerNotifier extends StateNotifier<QuillController> {
     state = QuillController.basic();
   }
 
+  /// Clear the document (alias for newDocument)
+  void clearDocument() {
+    newDocument();
+  }
+
   /// Load a document from Delta JSON
   void loadDocument(List<dynamic> deltaJson) {
     try {
