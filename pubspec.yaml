@@ -54,14 +54,23 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.14.2
 
 flutter:
   uses-material-design: true
 
-  # Assets and fonts can be added here later
-  # assets:
-  #   - assets/icons/
-  # fonts:
-  #   - family: CustomFont
-  #     fonts:
-  #       - asset: fonts/CustomFont-Regular.ttf
+  assets:
+    - assets/icon/
+
+# ============================================
+# FLUTTER LAUNCHER ICONS CONFIG
+# ============================================
+flutter_launcher_icons:
+  android: true
+  ios: true
+  windows:
+    generate: true
+    icon_size: 48
+  image_path: "assets/icon/app_icon.png"
+  adaptive_icon_background: "#6B21A8"
+  adaptive_icon_foreground: "assets/icon/app_icon.png"
