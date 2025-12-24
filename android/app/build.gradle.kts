@@ -23,7 +23,7 @@ android {
 
     defaultConfig {
         applicationId = "com.angietextedit.angie_text_edit"
-        minSdk = 21  // Explicit minSdk for dependency compatibility
+        minSdk = flutter.minSdkVersion  // Explicit minSdk for dependency compatibility
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
